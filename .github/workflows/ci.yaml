@@ -8,25 +8,19 @@ on:
 env:
   IMAGE_NAME: webapp-ci-cd
   IMAGE_TAG: 1.0.1
+  # On s'assure que le registre Docker est bien défini
   DOCKER_REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
 
   # ===============================
-  # JOB 1 - CI : BUILD + PUSH + SCAN
+  # JOB 1 - CI : BUILD + PUSH
   # ===============================
   ci:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-
-      - name: Display variables
-        run: |
-          echo "IMAGE_NAME: $IMAGE_NAME"
-          echo "IMAGE_TAG: $IMAGE_TAG"
-          echo "DOCKER_REGISTRY: $DOCKER_REGISTRY"
 
       - name: Login to Docker Hub
         run: |
@@ -37,36 +31,42 @@ jobs:
         run: |
           docker build -t ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
 
-      - name: Verify image
-        run: |
-          docker image ls | grep ${{ env.IMAGE_NAME }}
-
       - name: Push Docker image
         run: |
           docker push ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   # ===============================
-  # JOB 2 - CD : DEPLOY
+  # JOB 2 - SECURITY SCAN (TRIVY)
+  # ===============================
+  scan-trivy:
+    needs: ci # On scanne après que l'image soit construite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
+          format: 'table'
+          exit-code: '1' # Fait échouer le pipeline si des failles CRITICAL sont trouvées
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  # ===============================
+  # JOB 3 - CD : DEPLOY
   # ===============================
   deploy:
-    needs: ci
-    runs-on: runner-lab
+    needs: scan-trivy # Le déploiement ne se lance que si le scan est OK
+    runs-on: ubuntu-latest # Modifié de runner-lab à ubuntu-latest pour le test
 
     steps:
       - name: Pull latest image
         run: |
-          echo "Hello deploy"
-
-      - name: Pull latest image
-        run: |
           docker pull ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-      - name: Stop existing container
+      - name: Stop and Remove existing container
         run: |
           docker stop ci-app || true
-
-      - name: Remove old container
-        run: |
           docker rm ci-app || true
 
       - name: Run new container
