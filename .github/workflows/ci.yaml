@@ -52,7 +52,7 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-  # ===============================
+  # ================================
   # JOB 3 - CD : DEPLOY
   # ===============================
   deploy:
