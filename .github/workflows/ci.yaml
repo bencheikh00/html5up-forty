@@ -37,7 +37,7 @@ jobs:
 
   # ===============================
   # JOB 2 - SECURITY SCAN (TRIVY)
-  # ===============================
+  # ================================
   scan-trivy:
     needs: ci # On scanne après que l'image soit construite
     runs-on: ubuntu-latest
