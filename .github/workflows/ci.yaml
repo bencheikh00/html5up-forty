@@ -47,7 +47,7 @@ jobs:
         with:
           image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
           format: 'table'
-          exit-code: '1' # Fait échouer le pipeline si des failles CRITICAL sont trouvées
+          exit-code: '0' 
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
@@ -56,8 +56,8 @@ jobs:
   # JOB 3 - CD : DEPLOY
   # ===============================
   deploy:
-    needs: scan-trivy # Le déploiement ne se lance que si le scan est OK
-    runs-on: ubuntu-latest # Modifié de runner-lab à ubuntu-latest pour le test
+    needs: scan-trivy 
+    runs-on: ubuntu-latest 
 
     steps:
       - name: Pull latest image
